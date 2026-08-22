@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Staged Rollout Cohort Simulator</title>
+<meta name="description" content="Runs the electron-updater staged rollout formula against generated install ids and shows that a staged rollout is a fixed cohort, not a rotating sample.">
+<link rel="canonical" href="https://0xelitesystem.github.io/staged-rollout-cohort-simulator/">
+<meta property="og:title" content="Staged Rollout Cohort Simulator">
+<meta property="og:description" content="Runs the electron-updater staged rollout formula against generated install ids and shows that a staged rollout is a fixed cohort, not a rotating sample.">
+<meta property="og:url" content="https://0xelitesystem.github.io/staged-rollout-cohort-simulator/">
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="website">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Staged Rollout Cohort Simulator","applicationCategory":"DeveloperApplication","operatingSystem":"Any (browser)","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"url":"https://0xelitesystem.github.io/staged-rollout-cohort-simulator/","author":{"@type":"Person","name":"0xelitesystem","url":"https://elitesystem.ai"}}
+</script>
+<script>
+(function(){try{var t=localStorage.getItem('srcs-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches){document.documentElement.setAttribute('data-theme','light');}}catch(e){}})();
+</script>
+<style>
+:root, :root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:#0a0a0a; --bg-deep:#050505; --surface:#111110; --surface-2:#161614;
+  --ink:#e8e8e3; --ink-soft:#a8a8a3; --muted:#6e6e68;
+  --rule:#1f1f1d; --rule-2:#2a2a27;
+  --accent:#d4ff3a; --accent-2:#ffb454; --accent-soft:rgba(212,255,58,0.12);
+  --on-accent:#0a0a0a; --code-bg:#111110;
+  --ok:#7ddc7d; --warn:#ffb454; --err:#ff6450; --info:#6fd3e0;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg:#e8ebef; --bg-deep:#f4f5f8; --surface:#dee2e8; --surface-2:#d3d7df;
+  --ink:#0a0a0a; --ink-soft:#2a2a27; --muted:#6e6e68;
+  --rule:#c8cdd5; --rule-2:#aab0ba;
+  --accent:#2d6b00; --accent-2:#8a4d00; --accent-soft:rgba(45,107,0,0.08);
+  --on-accent:#ffffff; --code-bg:#dee2e8;
+  --ok:#1a5c2e; --warn:#8a4d00; --err:#a82d14; --info:#0f5c60;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+code,kbd,pre,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+.wrap{max-width:980px;margin:0 auto;padding:0 18px 72px}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+a:hover{border-bottom-color:var(--accent)}
+
+header.top{border-bottom:1px solid var(--rule);background:var(--bg-deep)}
+.topin{max-width:980px;margin:0 auto;padding:16px 18px;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.brand{flex:1 1 240px;min-width:0}
+h1{font-size:19px;margin:0;letter-spacing:-0.01em;font-weight:650}
+.sub{color:var(--ink-soft);font-size:13px;margin-top:3px}
+.kicker{display:inline-block;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--accent);border:1px solid var(--rule-2);background:var(--accent-soft);
+  padding:2px 7px;border-radius:3px;margin-bottom:7px}
+button{font:inherit;cursor:pointer;border-radius:5px;border:1px solid var(--rule-2);
+  background:var(--surface-2);color:var(--ink);padding:7px 12px}
+button:hover{border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed;border-color:var(--rule-2)}
+.themebtn{font-size:12px;padding:6px 10px;white-space:nowrap}
+.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600}
+.primary:hover{filter:brightness(1.08)}
+
+section{margin-top:34px}
+h2{font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);
+   margin:0 0 12px;font-weight:600;border-bottom:1px solid var(--rule);padding-bottom:7px}
+h3{font-size:14px;margin:0 0 6px;font-weight:650}
+p{margin:0 0 11px}
+.lead{font-size:16px;color:var(--ink-soft);max-width:70ch}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:7px;padding:16px}
+.card + .card{margin-top:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.muted{color:var(--ink-soft)}
+.soft{color:var(--ink-soft)}
+.small{font-size:13px}
+.tiny{font-size:12px}
+
+pre{background:var(--code-bg);border:1px solid var(--rule);border-radius:6px;
+  padding:12px 13px;overflow-x:auto;font-size:12.5px;line-height:1.55;margin:0}
+pre.diff .del{color:var(--err)}
+pre.diff .add{color:var(--ok)}
+pre .cm{color:var(--ink-soft)}
+
+label.f{display:block;font-size:11px;letter-spacing:0.09em;text-transform:uppercase;
+  color:var(--ink-soft);margin-bottom:4px}
+input[type=text],input[type=number]{
+  font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  width:100%;padding:8px 9px;border-radius:5px;border:1px solid var(--rule-2);
+  background:var(--bg-deep);color:var(--ink)}
+input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:end}
+.runrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.err{color:var(--err);font-size:13px;margin-top:10px;display:none}
+.err.on{display:block}
+.bar{height:6px;background:var(--surface-2);border:1px solid var(--rule);border-radius:99px;
+  overflow:hidden;flex:1 1 140px;min-width:100px;display:none}
+.bar.on{display:block}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .12s linear}
+.status{font-size:12px;color:var(--ink-soft);overflow-wrap:anywhere}
+
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--rule);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
+td.num,th.num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+tbody tr:last-child td{border-bottom:none}
+.tscroll{overflow-x:auto}
+
+.verdict{border-left:3px solid var(--accent);padding-left:14px;margin:0 0 16px}
+.vbig{font-size:15px;line-height:1.5}
+.vbig b{color:var(--accent)}
+.hero{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.stat{background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:12px}
+.stat .k{font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft)}
+.stat .v{font-size:22px;font-weight:650;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  margin-top:3px;letter-spacing:-0.02em;overflow-wrap:anywhere}
+.stat .n{font-size:12px;color:var(--ink-soft);margin-top:3px}
+.v-ok{color:var(--ok)} .v-err{color:var(--err)} .v-warn{color:var(--warn)} .v-acc{color:var(--accent)}
+
+.col-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+.col-head h3{overflow-wrap:anywhere}
+.col-head .tag{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
+  border:1px solid var(--rule-2);border-radius:3px;padding:2px 6px;color:var(--ink-soft);white-space:nowrap}
+.tag.shipped{color:var(--err);border-color:var(--err)}
+.tag.salted{color:var(--ok);border-color:var(--ok)}
+
+.finding{border-left:3px solid var(--warn);padding-left:13px;margin-bottom:16px}
+.finding:last-child{margin-bottom:0}
+.finding h3{color:var(--warn)}
+
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.kv .k{color:var(--ink-soft)}
+.hl{color:var(--accent)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chips button{font-size:12px;padding:5px 9px}
+.empty{color:var(--ink-soft);font-size:13px}
+footer{margin-top:52px;border-top:1px solid var(--rule);padding-top:16px;
+  display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft)}
+@media (max-width:720px){
+  .grid2{grid-template-columns:1fr}
+  .controls{grid-template-columns:1fr 1fr}
+  .hero{grid-template-columns:1fr}
+  .wrap{padding:0 14px 56px}
+  .kv{grid-template-columns:1fr;gap:0 0}
+  .kv .k{margin-top:7px}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="topin">
+    <div class="brand">
+      <span class="kicker">a disproof, not a visualiser</span>
+      <h1>Staged Rollout Cohort Simulator</h1>
+      <div class="sub">Runs the shipped electron-updater bucketing formula against freshly generated install ids, live, in this tab.</div>
+    </div>
+    <button id="theme" class="themebtn" type="button">Theme: auto</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="thesis" style="margin-top:26px">
+  <p class="lead">A staged rollout sounds like a sample that rotates. In electron-updater it does not.
+  The install draws one id, once, and keeps it forever. The version string never enters the bucketing
+  formula, so every release at 10 percent ships to the <em>same</em> 10 percent. This page runs that
+  formula against generated ids and measures what the omission costs you, then runs the salted variant
+  that mature rollout systems use, so the difference is readable off one screen.</p>
+</section>
+
+<section id="formula">
+  <h2>The formula under test</h2>
+  <div class="card">
+    <p class="small soft" style="margin-bottom:9px">The shape of the staged rollout check as shipped in electron-updater's <code>AppUpdater.ts</code>:</p>
+<pre id="shipped-formula">id  = UUID.v5(randomBytes(4096), UUID.OID)   <span class="cm">// persisted once to .updaterId</span>
+val = UUID.parse(id).readUInt32BE(12)
+pct = val / 0xffffffff
+return pct &lt; stagingPercentage</pre>
+    <p class="small soft" style="margin:11px 0 0">Four things are absent from that expression: the version,
+    the channel, the release date, and any per-release salt. The bucket is a pure function of a persisted
+    id, so it is fixed for the life of the install. Everything below follows from that one omission.</p>
+  </div>
+</section>
+
+<section id="run">
+  <h2>Run the simulation</h2>
+  <div class="card">
+    <div class="controls">
+      <div>
+        <label class="f" for="in-n">Installs</label>
+        <input type="number" id="in-n" value="200000" min="1000" max="2000000" step="1000">
+      </div>
+      <div>
+        <label class="f" for="in-gates">Gates (percent)</label>
+        <input type="text" id="in-gates" value="10, 25, 50" spellcheck="false">
+      </div>
+      <div>
+        <label class="f" for="in-canary">Canary gate</label>
+        <input type="number" id="in-canary" value="10" min="1" max="100" step="1">
+      </div>
+      <div>
+        <label class="f" for="in-rel">Releases</label>
+        <input type="number" id="in-rel" value="10" min="2" max="50" step="1">
+      </div>
+    </div>
+    <div class="runrow">
+      <button id="go" class="primary" type="button">Run simulation</button>
+      <div class="bar" id="bar"><i id="barfill"></i></div>
+      <div class="status" id="status"></div>
+    </div>
+    <div class="err" id="run-err"></div>
+    <p class="tiny muted" style="margin:12px 0 0">Every install id is drawn fresh from
+    <code>crypto.getRandomValues</code> on each run. Nothing here is precomputed, so the cohort sizes move
+    between runs while the structural results do not. That contrast is the point: run it twice.</p>
+  </div>
+</section>
+
+<section id="results">
+  <h2>Result</h2>
+  <div class="card">
+    <p class="empty" id="results-empty">No run yet. Press <b>Run simulation</b> above.</p>
+    <div id="results-body" hidden>
+      <div class="verdict"><div class="vbig" id="verdict-line"></div></div>
+      <div class="hero" id="hero"></div>
+    </div>
+  </div>
+</section>
+
+<section id="nesting" hidden>
+  <h2>1. The cohort is nested, not rotated</h2>
+  <div class="card">
+    <p class="small soft">Raising the gate can only add installs. Anything inside the 10 percent gate is
+    inside every larger gate, because the test is <code>bucket &lt; gate</code> against a bucket that never
+    changes. Counted per install below, not assumed:</p>
+    <div class="tscroll"><table id="gate-table"><thead><tr>
+      <th>Gate</th><th class="num">In cohort</th><th class="num">Share</th>
+      <th class="num">Added</th><th class="num">Dropped</th><th>Subset holds</th>
+    </tr></thead><tbody></tbody></table></div>
+    <p class="small soft" id="nesting-note" style="margin:12px 0 0"></p>
+  </div>
+</section>
+
+<section id="compare" hidden>
+  <h2>2. Consecutive releases, two implementations, side by side</h2>
+  <div class="grid2">
+    <div class="card">
+      <div class="col-head"><h3>Shipped: bucket(installId)</h3><span class="tag shipped">as built</span></div>
+      <div class="tscroll"><table id="uns-table"><thead><tr>
+        <th>Release</th><th class="num">Cohort</th><th class="num">Overlap with previous</th>
+      </tr></thead><tbody></tbody></table></div>
+      <div class="kv" id="uns-sum" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <div class="col-head"><h3>Salted: bucket(hash(installId, releaseId))</h3><span class="tag salted">counterfactual</span></div>
+      <div class="tscroll"><table id="salt-table"><thead><tr>
+        <th>Release</th><th class="num">Cohort</th><th class="num">Overlap with previous</th>
+      </tr></thead><tbody></tbody></table></div>
+      <div class="kv" id="salt-sum" style="margin-top:12px"></div>
+    </div>
+  </div>
+  <div class="card">
+    <p class="small soft" style="margin-bottom:9px"><b>Overlap</b> is
+    <code>|cohort(r) intersect cohort(r-1)| / |cohort(r-1)|</code>: the share of last release's canaries
+    that are canaries again. At 1.0000 the same machines absorb every bad build you ever ship, and the rest
+    of the base is a permanent control group that tests nothing.</p>
+    <p class="small soft" style="margin:0"><b>Ever canaried</b> is the union across all simulated releases:
+    the share of the base that has taken at least one staged build. Under the shipped formula it equals the
+    cohort size no matter how many releases you run. That is the number to take to a release meeting.</p>
+  </div>
+</section>
+
+<section id="diff" hidden>
+  <h2>3. The receipt: the whole difference is one argument</h2>
+  <div class="card">
+    <p class="small soft" style="margin-bottom:9px">Both columns above ran over the same install ids, in the
+    same tab, in the same run. This is the only difference between them:</p>
+<pre class="diff"><span class="del">- val = bucket(installId)                    // shipped: releaseId is not an input</span>
+<span class="add">+ val = bucket(hash(installId, releaseId))    // salted: one extra input</span>
+<span class="cm">  return val / 0xffffffff &lt; stagingPercentage / 100</span></pre>
+    <p class="small soft" style="margin:11px 0 0">Hashing a per-rollout identifier together with the unit id
+    is the convention percentage-rollout systems such as LaunchDarkly, Unleash and Statsig follow: the bucket
+    stays stable <em>within</em> a rollout and is independent <em>across</em> rollouts. This simulator uses
+    murmur3 32-bit over the two ids. The choice of hash is not the finding. The missing input is the finding.</p>
+  </div>
+</section>
+
+<section id="inspector">
+  <h2>4. Bucket inspector: check the byte math yourself</h2>
+  <div class="card">
+    <p class="small soft">Paste any UUID. The page computes the bucket both ways, Node's
+    <code>readUInt32BE(12)</code> by explicit byte composition and the browser's
+    <code>parseInt(hex.slice(24, 32), 16)</code>, and reports whether they agree. No
+    <code>crypto.subtle</code> is needed for the bucket math and none is used.</p>
+    <div style="margin-top:12px">
+      <label class="f" for="uuid-in">UUID</label>
+      <input type="text" id="uuid-in" spellcheck="false" placeholder="8 hex, dash, 4, dash, 4, dash, 4, dash, 12">
+    </div>
+    <div class="chips">
+      <button type="button" data-uuid="random">Random id</button>
+      <button type="button" data-uuid="ffffffff-ffff-ffff-ffff-ffffffffffff">All ff (max bucket)</button>
+      <button type="button" data-uuid="00000000-0000-0000-0000-000000000000">All zero (min bucket)</button>
+      <button type="button" data-uuid="6ba7b812-9dad-11d1-80b4-00c04fd430c8">OID namespace</button>
+      <button type="button" id="uuid-sweep">Agreement sweep, 1000 random ids</button>
+    </div>
+    <div class="err" id="uuid-err"></div>
+    <div id="uuid-out" hidden style="margin-top:14px">
+      <div class="kv" id="uuid-kv"></div>
+      <div class="tscroll" style="margin-top:12px"><table id="uuid-table"><thead><tr>
+        <th>Staging percentage</th><th class="num">Comparison</th><th>Receives the build</th>
+      </tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</section>
+
+<section id="edge">
+  <h2>5. The 0xffffffff off-by-one: real, and it will never bite anyone</h2>
+  <div class="card">
+    <p class="small soft">The divisor is <code>0xffffffff</code>, not <code>0x100000000</code>. An install
+    whose 32 bits are all ones therefore yields a percentage of exactly <code>1.0</code>, and
+    <code>1.0 &lt; 1.0</code> is false, so that install is excluded even from a 100 percent staged release.
+    It is a genuine off-by-one in the shipped comparison.</p>
+    <p class="small soft">It is also unreachable. Both halves, computed on load:</p>
+    <div class="kv" id="edge-kv" style="margin-top:10px"></div>
+    <p class="small soft" style="margin:12px 0 0">Report it, do not lead with it. A reader who does the
+    arithmetic and catches you overselling a one-in-four-billion event will stop trusting the rest of the
+    page. The nesting result above is the one that costs real money.</p>
+  </div>
+</section>
+
+<section id="more">
+  <h2>6. Two more findings from the same update path</h2>
+  <div class="card">
+    <div class="finding">
+      <h3>Setting a channel unconditionally arms downgrades</h3>
+      <p class="small soft" style="margin:0">The channel setter sets <code>allowDowngrade</code> to true
+      unconditionally. Switching a user to a channel for any reason, including moving them off a broken
+      beta, silently enables downgrades as a side effect. The two decisions are not separable at the call
+      site: you cannot set a channel and keep downgrades off.</p>
+    </div>
+    <div class="finding">
+      <h3>Pulling a bad staged release requires a version above the broken one</h3>
+      <p class="small soft" style="margin:0">There is no rollback lever. Because the update decision is
+      driven by version comparison, withdrawing a bad staged build means publishing a version
+      <em>higher</em> than the broken one. Re-publishing the same version number leaves everyone who already
+      took the bad build stuck on it. Combine that with the nesting result and the shape is clear: one fixed
+      cohort eats every bad build, and then waits on your ability to ship a version bump.</p>
+    </div>
+  </div>
+</section>
+
+<section id="method">
+  <h2>7. Method, and why this is a fair test</h2>
+  <div class="card">
+    <p class="small soft"><b>The id draw.</b> The shipped code generates 4096 random bytes, takes a UUID v5
+    of them, persists it, and then reads exactly four bytes back out: bytes 12 to 15. UUID v5 puts the
+    version bits in byte 6 and the variant bits in byte 8, so bytes 12 to 15 carry no forced bits and the
+    bucket is a uniform 32-bit draw. This page draws those 32 bits directly with
+    <code>crypto.getRandomValues</code>: same distribution, four bytes per install instead of 4096, which is
+    what lets 200,000 installs times a dozen cohorts finish without pinning the tab. The inspector above runs
+    the full UUID path, so the byte math is checkable on real ids rather than taken on trust.</p>
+    <p class="small soft"><b>Where the work happens.</b> The simulation runs in a worker built from a blob
+    when the browser allows it, and falls back to time-sliced chunks on the main thread when it does not,
+    for instance under a strict <code>file://</code> origin. Each run reports which path it took. Neither
+    path is a blocking loop.</p>
+    <p class="small soft" style="margin-bottom:0"><b>What is invariant and what is not.</b> Cohort sizes are
+    random and move on every run. The structural results do not move: the smaller cohort is a strict subset
+    of the larger, raising the gate drops zero installs, and consecutive releases under the shipped formula
+    select the identical set at overlap exactly 1.0000. If a run ever shows otherwise, the simulator is
+    wrong, and you should not believe the rest of it either.</p>
+  </div>
+</section>
+
+<footer>
+  <a href="https://elitesystem.ai">elitesystem.ai</a>
+  <a href="https://github.com/0xelitesystem/staged-rollout-cohort-simulator">source</a>
+  <a href="https://0xelitesystem.github.io/">catalog</a>
+</footer>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- theme ---------- */
+var root=document.documentElement, tb=document.getElementById('theme');
+function stored(){ try{return localStorage.getItem('srcs-theme');}catch(e){return null;} }
+function label(){
+  var s=stored();
+  tb.textContent='Theme: '+(s==='light'?'light':s==='dark'?'dark':'auto');
+}
+function current(){
+  var a=root.getAttribute('data-theme');
+  if(a) return a;
+  return (window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+}
+tb.addEventListener('click',function(){
+  var next=current()==='dark'?'light':'dark';
+  root.setAttribute('data-theme',next);
+  try{localStorage.setItem('srcs-theme',next);}catch(e){}
+  label();
+});
+label();
+
+/* ---------- helpers ---------- */
+function $(id){return document.getElementById(id);}
+function num(x){return Number(x).toLocaleString('en-US');}
+function pctS(x,d){return (x*100).toFixed(d===undefined?3:d)+'%';}
+function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;}
+function kv(host,pairs){
+  host.textContent='';
+  for(var i=0;i<pairs.length;i++){
+    host.appendChild(el('div','k',pairs[i][0]));
+    host.appendChild(el('div',pairs[i][2]||'',pairs[i][1]));
+  }
+}
+function showErr(node,msg){node.textContent=msg;node.className='err on';}
+function clearErr(node){node.textContent='';node.className='err';}
+
+/* ---------- simulation core, shared by worker and main thread ----------
+   Returns a generator so the identical source can be drained synchronously
+   inside a worker or time-sliced on the main thread. No DOM access here. */
+function simCore(P){
+  function mm32(k1,seed){
+    /* murmur3 x86 32-bit over a single 4-byte block */
+    var h1=seed>>>0;
+    k1=Math.imul(k1>>>0,0xcc9e2d51);
+    k1=(k1<<15)|(k1>>>17);
+    k1=Math.imul(k1,0x1b873593);
+    h1^=k1;
+    h1=(h1<<13)|(h1>>>19);
+    h1=(Math.imul(h1,5)+0xe6546b64)|0;
+    h1^=4;
+    h1^=h1>>>16; h1=Math.imul(h1,0x85ebca6b);
+    h1^=h1>>>13; h1=Math.imul(h1,0xc2b2ae35);
+    h1^=h1>>>16;
+    return h1>>>0;
+  }
+  function mmStr(s){
+    /* murmur3 x86 32-bit over an ASCII string, used to turn a version into a seed */
+    var h1=0,i=0,len=s.length,k1=0;
+    for(i=0;i+4<=len;i+=4){
+      k1=(s.charCodeAt(i)&0xff)|((s.charCodeAt(i+1)&0xff)<<8)|((s.charCodeAt(i+2)&0xff)<<16)|((s.charCodeAt(i+3)&0xff)<<24);
+      k1=Math.imul(k1,0xcc9e2d51); k1=(k1<<15)|(k1>>>17); k1=Math.imul(k1,0x1b873593);
+      h1^=k1; h1=(h1<<13)|(h1>>>19); h1=(Math.imul(h1,5)+0xe6546b64)|0;
+    }
+    k1=0;
+    switch(len&3){
+      case 3: k1^=(s.charCodeAt(i+2)&0xff)<<16;
+      case 2: k1^=(s.charCodeAt(i+1)&0xff)<<8;
+      case 1: k1^=(s.charCodeAt(i)&0xff);
+              k1=Math.imul(k1,0xcc9e2d51); k1=(k1<<15)|(k1>>>17); k1=Math.imul(k1,0x1b873593); h1^=k1;
+    }
+    h1^=len;
+    h1^=h1>>>16; h1=Math.imul(h1,0x85ebca6b);
+    h1^=h1>>>13; h1=Math.imul(h1,0xc2b2ae35);
+    h1^=h1>>>16;
+    return h1>>>0;
+  }
+
+  return (function*(){
+    var t0=Date.now();
+    var n=P.n, gates=P.gates, R=P.releases, cg=P.canaryGate;
+    var CH=32768, MAXWORDS=16384, i, k, g, r, end;
+    var rng=(typeof self!=='undefined'&&self.crypto)?self.crypto:crypto;
+
+    /* phase 1: one 32-bit bucket draw per install */
+    var ids=new Uint32Array(n);
+    for(i=0;i<n;i+=MAXWORDS){
+      var len=Math.min(MAXWORDS,n-i);
+      rng.getRandomValues(ids.subarray(i,i+len));
+      yield {phase:'drawing install ids',done:i+len,total:n};
+    }
+
+    /* phase 2: gate counts, measured per install, nothing assumed */
+    var G=gates.length;
+    var counts=[], added=[], dropped=[];
+    for(g=0;g<G;g++){counts.push(0);added.push(0);dropped.push(0);}
+    for(i=0;i<n;i+=CH){
+      end=Math.min(n,i+CH);
+      for(k=i;k<end;k++){
+        var p=ids[k]/0xffffffff, prevIn=false;
+        for(g=0;g<G;g++){
+          var inG=p<gates[g]/100;
+          if(inG) counts[g]++;
+          if(g>0){ if(!prevIn&&inG) added[g]++; if(prevIn&&!inG) dropped[g]++; }
+          prevIn=inG;
+        }
+      }
+      yield {phase:'counting gate cohorts',done:end,total:n};
+    }
+
+    /* phases 3 and 4: consecutive releases, shipped then salted */
+    var versions=[]; for(r=0;r<R;r++) versions.push('1.'+r+'.0');
+    var seeds=new Uint32Array(R); for(r=0;r<R;r++) seeds[r]=mmStr(versions[r]);
+    var thr=cg/100;
+    var modes=[{key:'unsalted',name:'shipped'},{key:'salted',name:'salted'}];
+    var out={};
+
+    for(var m=0;m<2;m++){
+      var salted=modes[m].key==='salted';
+      var prev=new Uint8Array(n), cur=new Uint8Array(n), ever=new Uint8Array(n);
+      var sizes=[], inters=[], everCount=0;
+      for(r=0;r<R;r++){
+        var size=0, inter=0;
+        for(i=0;i<n;i+=CH){
+          end=Math.min(n,i+CH);
+          for(k=i;k<end;k++){
+            var val=salted?mm32(ids[k],seeds[r]):ids[k];
+            var hit=(val/0xffffffff)<thr?1:0;
+            cur[k]=hit;
+            if(hit){
+              size++;
+              if(r>0&&prev[k]) inter++;
+              if(!ever[k]){ever[k]=1;everCount++;}
+            }
+          }
+          yield {phase:modes[m].name+' releases, '+(r+1)+' of '+R,done:end,total:n};
+        }
+        sizes.push(size);
+        inters.push(r>0?inter:-1);
+        var swap=prev; prev=cur; cur=swap;
+      }
+      var overlaps=[], sum=0, cnt=0;
+      for(r=0;r<R;r++){
+        if(r===0){overlaps.push(null);continue;}
+        var o=sizes[r-1]>0?inters[r]/sizes[r-1]:0;
+        overlaps.push(o); sum+=o; cnt++;
+      }
+      out[modes[m].key]={sizes:sizes,overlaps:overlaps,meanOverlap:cnt?sum/cnt:0,everCount:everCount};
+    }
+
+    return {
+      n:n,gates:gates,counts:counts,added:added,dropped:dropped,
+      canaryGate:cg,releases:R,versions:versions,
+      unsalted:out.unsalted,salted:out.salted,ms:Date.now()-t0
+    };
+  })();
+}
+
+/* ---------- runner: worker when available, time-sliced main thread otherwise ---------- */
+function runSim(P,onProgress){
+  return new Promise(function(resolve,reject){
+    var src='var simCore='+simCore.toString()+';\n'+
+      'self.onmessage=function(e){try{var it=simCore(e.data),s;'+
+      'while(!(s=it.next()).done){self.postMessage({t:"p",v:s.value});}'+
+      'self.postMessage({t:"d",v:s.value});}catch(err){self.postMessage({t:"e",v:String((err&&err.message)||err)});}};';
+    var w=null,url=null,settled=false;
+
+    function fallback(){
+      var it=simCore(P);
+      function pump(){
+        var t0=(window.performance&&performance.now)?performance.now():Date.now();
+        try{
+          for(;;){
+            var s=it.next();
+            if(s.done){var v=s.value;v.engine='main thread, time-sliced';resolve(v);return;}
+            onProgress(s.value);
+            var t1=(window.performance&&performance.now)?performance.now():Date.now();
+            if(t1-t0>12) break;
+          }
+        }catch(err){ reject(err); return; }
+        setTimeout(pump,0);
+      }
+      setTimeout(pump,0);
+    }
+    function bail(){ if(settled) return; settled=true;
+      try{w.terminate();}catch(e){}
+      try{URL.revokeObjectURL(url);}catch(e){}
+      fallback();
+    }
+
+    try{
+      url=URL.createObjectURL(new Blob([src],{type:'text/javascript'}));
+      w=new Worker(url);
+    }catch(e){ w=null; }
+    if(!w){ fallback(); return; }
+
+    w.onmessage=function(e){
+      var d=e.data;
+      if(d.t==='p'){ onProgress(d.v); return; }
+      if(d.t==='d'){
+        settled=true; d.v.engine='worker'; w.terminate();
+        try{URL.revokeObjectURL(url);}catch(e2){}
+        resolve(d.v); return;
+      }
+      bail();
+    };
+    w.onerror=function(ev){ if(ev&&ev.preventDefault) ev.preventDefault(); bail(); };
+    try{ w.postMessage(P); }catch(e){ bail(); }
+  });
+}
+
+/* ---------- input parsing ---------- */
+function parseGates(raw){
+  var s=String(raw==null?'':raw).trim();
+  if(!s) throw new Error('Gates is empty. Enter one or more percentages, for example 10, 25, 50.');
+  var parts=s.split(/[,\s]+/).filter(function(x){return x.length;});
+  var out=[];
+  for(var i=0;i<parts.length;i++){
+    if(!/^\d+(\.\d+)?$/.test(parts[i])) throw new Error('"'+parts[i]+'" is not a percentage. Use plain numbers such as 10, 25, 50.');
+    var v=parseFloat(parts[i]);
+    if(!(v>0&&v<=100)) throw new Error('Gate '+parts[i]+' is out of range. Percentages must be above 0 and at most 100.');
+    out.push(v);
+  }
+  if(!out.length) throw new Error('Gates is empty. Enter one or more percentages, for example 10, 25, 50.');
+  out.sort(function(a,b){return a-b;});
+  for(var j=1;j<out.length;j++) if(out[j]===out[j-1]) throw new Error('Duplicate gate '+out[j]+'. Each percentage may appear once.');
+  return out;
+}
+function parseWhole(raw,name,lo,hi){
+  var s=String(raw==null?'':raw).trim();
+  if(!s) throw new Error(name+' is empty.');
+  if(!/^\d+$/.test(s)) throw new Error(name+' must be a whole number. Got "'+s+'".');
+  var v=parseInt(s,10);
+  if(v<lo||v>hi) throw new Error(name+' must be between '+num(lo)+' and '+num(hi)+'. Got '+num(v)+'.');
+  return v;
+}
+
+/* ---------- rendering ---------- */
+function render(R){
+  var gi=R.gates.indexOf(R.canaryGate);
+  var cohort=gi>=0?R.counts[gi]:R.unsalted.sizes[0];
+  var u=R.unsalted,s=R.salted;
+
+  $('results-empty').hidden=true;
+  $('results-body').hidden=false;
+
+  $('verdict-line').innerHTML=
+    'Across <b>'+num(R.releases)+'</b> consecutive '+R.canaryGate+' percent releases the shipped formula '+
+    'selected the <b>identical</b> set of <b>'+num(u.sizes[0])+'</b> installs every time, at a '+
+    'release-to-release overlap of <b>'+u.meanOverlap.toFixed(4)+'</b>. Share of the base that has ever '+
+    'taken a staged build: <b>'+pctS(u.everCount/R.n,2)+'</b>. Salt the same ids with the release id and '+
+    'that share becomes <b>'+pctS(s.everCount/R.n,2)+'</b>, at an overlap of '+s.meanOverlap.toFixed(4)+'.';
+
+  var hero=$('hero'); hero.textContent='';
+  function stat(k,v,note,cls){
+    var d=el('div','stat');
+    d.appendChild(el('div','k',k));
+    d.appendChild(el('div','v '+(cls||''),v));
+    d.appendChild(el('div','n',note));
+    hero.appendChild(d);
+  }
+  stat(R.canaryGate+' percent cohort',num(cohort),
+       pctS(cohort/R.n,3)+' of '+num(R.n)+' simulated installs','v-acc');
+  stat('shipped: ever canaried',pctS(u.everCount/R.n,2),
+       num(u.everCount)+' distinct installs over '+R.releases+' releases','v-err');
+  stat('salted: ever canaried',pctS(s.everCount/R.n,2),
+       num(s.everCount)+' distinct installs over '+R.releases+' releases','v-ok');
+
+  /* nesting table */
+  var tb1=$('gate-table').querySelector('tbody'); tb1.textContent='';
+  for(var i=0;i<R.gates.length;i++){
+    var tr=el('tr');
+    tr.appendChild(el('td','',R.gates[i]+' percent'));
+    tr.appendChild(el('td','num',num(R.counts[i])));
+    tr.appendChild(el('td','num',pctS(R.counts[i]/R.n,3)));
+    tr.appendChild(el('td','num',i===0?'-':num(R.added[i])));
+    var dcell=el('td','num',i===0?'-':num(R.dropped[i]));
+    if(i>0&&R.dropped[i]>0) dcell.classList.add('v-err');
+    tr.appendChild(dcell);
+    var ok=el('td','',i===0?'-':(R.dropped[i]===0?'yes':'NO'));
+    if(i>0) ok.className=R.dropped[i]===0?'v-ok':'v-err';
+    tr.appendChild(ok);
+    tb1.appendChild(tr);
+  }
+  var allNested=true;
+  for(var d2=1;d2<R.gates.length;d2++) if(R.dropped[d2]>0) allNested=false;
+  $('nesting-note').textContent = R.gates.length<2
+    ? 'Add a second gate to see the nesting check.'
+    : (allNested
+      ? 'Zero installs were dropped at any step. Raising the gate from '+R.gates[0]+' to '+R.gates[1]+
+        ' added '+num(R.added[1])+' installs and dropped '+num(R.dropped[1])+'. Every smaller cohort is a '+
+        'strict subset of the next, so widening a rollout is never a fresh sample, only a superset of the '+
+        'one you already shipped to.'
+      : 'A gate dropped installs, which cannot happen under the shipped formula. Treat this run as suspect.');
+  $('nesting').hidden=false;
+
+  /* release tables */
+  function fill(tid,sid,data,cls){
+    var t=$(tid).querySelector('tbody'); t.textContent='';
+    for(var r=0;r<data.sizes.length;r++){
+      var tr=el('tr');
+      tr.appendChild(el('td','',R.versions[r]));
+      tr.appendChild(el('td','num',num(data.sizes[r])));
+      var ov=data.overlaps[r];
+      var c=el('td','num',ov===null?'-':ov.toFixed(4));
+      if(ov!==null) c.classList.add(cls);
+      tr.appendChild(c);
+      t.appendChild(tr);
+    }
+    kv($(sid),[
+      ['mean overlap',data.meanOverlap.toFixed(4),cls],
+      ['ever canaried',num(data.everCount)+'  ('+pctS(data.everCount/R.n,2)+')',cls],
+      ['never canaried',num(R.n-data.everCount)+'  ('+pctS((R.n-data.everCount)/R.n,2)+')','']
+    ]);
+  }
+  fill('uns-table','uns-sum',u,'v-err');
+  fill('salt-table','salt-sum',s,'v-ok');
+  $('compare').hidden=false;
+  $('diff').hidden=false;
+
+  $('status').textContent=num(R.n)+' installs, '+R.releases+' releases, 2 implementations, '+
+    num(R.ms)+' ms ('+R.engine+')';
+}
+
+/* ---------- run wiring ---------- */
+var running=false;
+$('go').addEventListener('click',function(){
+  if(running) return;
+  var errNode=$('run-err'); clearErr(errNode);
+  var P;
+  try{
+    P={
+      n:parseWhole($('in-n').value,'Installs',1000,2000000),
+      gates:parseGates($('in-gates').value),
+      canaryGate:parseWhole($('in-canary').value,'Canary gate',1,100),
+      releases:parseWhole($('in-rel').value,'Releases',2,50)
+    };
+    if(P.gates.indexOf(P.canaryGate)<0){
+      P.gates.push(P.canaryGate);
+      P.gates.sort(function(a,b){return a-b;});
+    }
+  }catch(e){ showErr(errNode,e.message); return; }
+
+  running=true;
+  $('go').disabled=true;
+  $('bar').className='bar on';
+  $('barfill').style.width='0%';
+  $('status').textContent='starting';
+  runSim(P,function(p){
+    $('status').textContent=p.phase;
+    $('barfill').style.width=Math.min(100,Math.round(100*p.done/p.total))+'%';
+  }).then(function(R){
+    $('barfill').style.width='100%';
+    $('bar').className='bar';
+    render(R);
+    running=false; $('go').disabled=false;
+  }).catch(function(e){
+    $('bar').className='bar';
+    $('status').textContent='';
+    showErr(errNode,'Simulation failed: '+((e&&e.message)?e.message:String(e)));
+    running=false; $('go').disabled=false;
+  });
+});
+
+/* ---------- bucket inspector ---------- */
+function normUuid(raw){
+  var s=String(raw==null?'':raw).trim();
+  if(!s) throw new Error('Enter a UUID, or press one of the sample buttons.');
+  var t=s.replace(/^urn:uuid:/i,'').replace(/[{}]/g,'').replace(/-/g,'');
+  if(!/^[0-9a-fA-F]*$/.test(t)) throw new Error('A UUID holds hex digits and dashes only. This one has other characters in it.');
+  if(t.length!==32) throw new Error('A UUID is 32 hex digits (128 bits). This one has '+t.length+'.');
+  return t.toLowerCase();
+}
+function fmtUuid(h){
+  return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20,32);
+}
+function randUuidHex(){
+  var b=new Uint8Array(16);
+  crypto.getRandomValues(b);
+  b[6]=(b[6]&0x0f)|0x50;   /* version nibble, byte 6 */
+  b[8]=(b[8]&0x3f)|0x80;   /* variant bits, byte 8 */
+  var s='';
+  for(var i=0;i<16;i++) s+=('0'+b[i].toString(16)).slice(-2);
+  return s;
+}
+function readUInt32BE12(hex){
+  /* explicit big-endian byte composition, the Node path */
+  var b12=parseInt(hex.slice(24,26),16), b13=parseInt(hex.slice(26,28),16);
+  var b14=parseInt(hex.slice(28,30),16), b15=parseInt(hex.slice(30,32),16);
+  return ((b12*16777216)+(b13*65536)+(b14*256)+b15)>>>0;
+}
+function inspect(raw){
+  var errNode=$('uuid-err');
+  clearErr(errNode);
+  var hex;
+  try{ hex=normUuid(raw); }
+  catch(e){ $('uuid-out').hidden=true; showErr(errNode,e.message); return; }
+
+  var slice=hex.slice(24,32);
+  var vBrowser=parseInt(slice,16)>>>0;
+  var vNode=readUInt32BE12(hex);
+  var agree=vBrowser===vNode;
+  var pct=vBrowser/0xffffffff;
+
+  $('uuid-in').value=fmtUuid(hex);
+  kv($('uuid-kv'),[
+    ['uuid',fmtUuid(hex)],
+    ['hex, dashes stripped',hex],
+    ['hex.slice(24, 32)',slice,'hl'],
+    ['parseInt(slice, 16)',num(vBrowser)],
+    ['readUInt32BE(12)',num(vNode)],
+    ['the two agree',agree?'yes':'NO',agree?'v-ok':'v-err'],
+    ['val / 0xffffffff',pct.toFixed(12),'hl'],
+    ['val / 0x100000000',(vBrowser/4294967296).toFixed(12)]
+  ]);
+
+  var t=$('uuid-table').querySelector('tbody'); t.textContent='';
+  var gates=[1,5,10,25,50,100];
+  for(var i=0;i<gates.length;i++){
+    var g=gates[i], hit=pct<g/100;
+    var tr=el('tr');
+    tr.appendChild(el('td','',g+' percent'));
+    tr.appendChild(el('td','num',pct.toFixed(9)+' < '+(g/100).toFixed(2)));
+    var c=el('td',hit?'v-ok':'',hit?'yes':'no');
+    if(g===100&&!hit){ c.className='v-err'; c.textContent='no (the 0xffffffff off-by-one)'; }
+    tr.appendChild(c);
+    t.appendChild(tr);
+  }
+  $('uuid-out').hidden=false;
+}
+var chips=document.querySelectorAll('[data-uuid]');
+for(var ci=0;ci<chips.length;ci++){
+  chips[ci].addEventListener('click',function(){
+    var v=this.getAttribute('data-uuid');
+    inspect(v==='random'?fmtUuid(randUuidHex()):v);
+  });
+}
+$('uuid-in').addEventListener('input',function(){
+  if(this.value.trim()===''){ clearErr($('uuid-err')); $('uuid-out').hidden=true; return; }
+  inspect(this.value);
+});
+$('uuid-sweep').addEventListener('click',function(){
+  var n=1000, ok=0;
+  var vectors=['ffffffffffffffffffffffffffffffff','00000000000000000000000000000000'];
+  var i;
+  for(i=0;i<vectors.length;i++){
+    if((parseInt(vectors[i].slice(24,32),16)>>>0)===readUInt32BE12(vectors[i])) ok++;
+  }
+  for(i=0;i<n;i++){
+    var h=randUuidHex();
+    if((parseInt(h.slice(24,32),16)>>>0)===readUInt32BE12(h)) ok++;
+  }
+  var total=n+vectors.length;
+  clearErr($('uuid-err'));
+  $('uuid-out').hidden=false;
+  kv($('uuid-kv'),[
+    ['sweep','parseInt(hex.slice(24,32),16) vs explicit readUInt32BE(12)'],
+    ['ids compared',num(total)+' ('+num(n)+' random, plus the all-ff and all-zero vectors)'],
+    ['agree',num(ok)+' of '+num(total),ok===total?'v-ok':'v-err'],
+    ['verdict',ok===total?'byte-identical on every id in this sweep':'MISMATCH, do not trust this page',ok===total?'v-ok':'v-err']
+  ]);
+  $('uuid-table').querySelector('tbody').textContent='';
+});
+
+/* ---------- the off-by-one, computed on load ---------- */
+(function(){
+  var p=1/4294967296;
+  var n50=Math.ceil(Math.log(0.5)/Math.log1p(-p));
+  kv($('edge-kv'),[
+    ['affected bucket','0xffffffff, exactly one value out of 2^32'],
+    ['probability per install',p.toExponential(4)+'  (1 in '+num(4294967296)+')','v-acc'],
+    ['installs needed for a 50 percent chance of one affected user',num(n50),'v-acc'],
+    ['computed as','Math.ceil(Math.log(0.5) / Math.log1p(-1 / 2**32))'],
+    ['severity','a real off-by-one that is unreachable in practice','v-warn']
+  ]);
+})();
+
+})();
+</script>
+</body>
+</html>
