@@ -74,6 +74,17 @@ Then visit http://localhost:8000/.
 
 There is no build. One file, `index.html`, with the CSS and JS inline. No bundler, no package manager, no dependencies, no lockfile, no CI step. Edit the file and reload the page.
 
+## Third-party notices
+
+This tool reimplements the staged rollout bucketing of electron-updater in plain
+browser JavaScript. It bundles no third-party code and makes no network request.
+
+- electron-builder, including electron-updater. Copyright (c) 2015 Loopline
+  Systems. MIT. https://github.com/electron-userland/electron-builder
+  The bucket derivation simulated here follows `AppUpdater.ts`. The salted
+  counterfactual shown beside it is this page's own construction and is not
+  upstream behaviour.
+
 ## License
 
 MIT. Copyright (c) 2026 0xelitesystem.
