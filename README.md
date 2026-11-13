@@ -87,7 +87,7 @@ browser JavaScript. It bundles no third-party code and makes no network request.
 
 ## License
 
-MIT. Copyright (c) 2026 0xelitesystem.
+MIT. Copyright (c) 2026 RBL Industries LLC.
 
 ## Related
 
